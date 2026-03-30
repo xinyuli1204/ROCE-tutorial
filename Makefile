@@ -2,12 +2,12 @@ CXX      = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -g
 LDFLAGS  = -libverbs -lrdmacm
 
-all: src/rdma_server src/rdma_client
+all: rdma_server rdma_client
 
-rdma_server: rdma_server.cpp common.hpp
+rdma_server: src/rdma_server.cpp src/common.hpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-rdma_client: rdma_client.cpp common.hpp
+rdma_client: src/rdma_client.cpp src/common.hpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:
