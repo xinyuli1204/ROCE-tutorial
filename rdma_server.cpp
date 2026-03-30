@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     // Copy client MR info out of private_data before acking the event
     mr_info_t client_mr{};
     if (ev->param.conn.private_data && ev->param.conn.private_data_len >= sizeof(mr_info_t))
-       memcpy(&client_mr, )
+        memcpy(&client_mr, &ev->param.conn.private_data, sizeof(mr_info_t));
     if (rdma_ack_cm_event(ev)) throw std::runtime_error("rdma_ack_cm_event"); // ack after reading
 
     printf("[SERVER] Connection request received\n");
