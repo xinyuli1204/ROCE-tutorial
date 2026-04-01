@@ -115,9 +115,12 @@ int main(int argc, char *argv[]) {
 
     // ── 4. Pre-post one RECV before rdma_accept ─────────────────────────────
     // Must happen before accept so we cannot miss the client's SEND("DONE")
+    // SEND_OFF matches the client's SEND_OFF (BUF_SIZE - 256)
+    // Keep it away from offset 0 (RDMA WRITE) and offset 1024 (RDMA READ)
+    static constexpr size_t RECV_OFF = BUF_SIZE - 256;
     ibv_sge sge{};
-    sge.addr   = (uintptr_t)(ctx.data);
-    sge.length = BUF_SIZE;
+    sge.addr   = (uintptr_t)(ctx.data) + RECV_OFF;
+    sge.length = 256;
     sge.lkey   = ctx.mr->lkey;
 
     ibv_recv_wr wr{};
@@ -168,10 +171,15 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // ── 8. Inspect what RDMA WRITE delivered ────────────────────────────
-    printf("\n[SERVER] buf[0..127] after client RDMA WRITE:\n");
+    // ── 8. Inspect buffer contents ───────────────────────────────────────
+    printf("\n[SERVER] RDMA WRITE (offset 0):\n");
     printf("──────────────────────────────────────────────\n");
     printf("%.128s", ctx.data);
+    printf("\n──────────────────────────────────────────────\n");
+
+    printf("\n[SERVER] SEND (offset %zu):\n", RECV_OFF);
+    printf("──────────────────────────────────────────────\n");
+    printf("%.256s", ctx.data + RECV_OFF);
     printf("\n──────────────────────────────────────────────\n");
 
     // ── 9. Graceful disconnect ───────────────────────────────────────────
