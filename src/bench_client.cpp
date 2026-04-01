@@ -1,14 +1,14 @@
 //
-// bench_client.cpp — Benchmark client for PFC-free RoCE study (ConnectX-7)
+// bench_client.cpp — Benchmark client (ConnectX-7, PCIe topology experiment)
 //
-// Measures RDMA WRITE latency and throughput under configurable message sizes.
-// Designed to be called by run_experiment.sh in a sweep over loss rates.
+// Measures RDMA WRITE throughput and tail latency for one message size.
+// Called by run_experiment.sh for each (config, msg_size) combination.
 //
 // Usage:
 //   ./bench_client <server-ip> <msg-size-bytes> <iterations> [client-ip]
 //
-// Output (CSV line to stdout — one line per run, captured by the script):
-//   throughput_gbps,p50_us,p99_us,p999_us,retries
+// Output (CSV fields to stdout, one line per run):
+//   throughput_gbps,p50_us,p99_us,p999_us,p9999_us,cnp_count,ack_timeouts,rx_errors
 //
 
 #include "common.hpp"
@@ -67,17 +67,21 @@ static uint64_t read_counter(const std::string &path) {
     return val;
 }
 
-// ── Detect IB device from cm_id and return sysfs hw_counters base path ───────
-static std::string hw_counters_path(rdma_cm_id *cm_id) {
+// ── Detect IB device + port from cm_id, return sysfs counter paths ───────────
+static std::string counter_base(rdma_cm_id *cm_id) {
     if (!cm_id->verbs) return "";
-    std::string dev_name = cm_id->verbs->device->name;
-    return "/sys/class/infiniband/" + dev_name + "/ports/1/hw_counters";
+    std::string dev  = cm_id->verbs->device->name;
+    // ibv_get_device_attr is not needed — port is in the route after resolution
+    uint8_t port = cm_id->port_num ? cm_id->port_num : 1;
+    return "/sys/class/infiniband/" + dev + "/ports/" + std::to_string(port);
+}
+
+static std::string hw_counters_path(rdma_cm_id *cm_id) {
+    return counter_base(cm_id) + "/hw_counters";
 }
 
 static std::string port_counters_path(rdma_cm_id *cm_id) {
-    if (!cm_id->verbs) return "";
-    std::string dev_name = cm_id->verbs->device->name;
-    return "/sys/class/infiniband/" + dev_name + "/ports/1/counters";
+    return counter_base(cm_id) + "/counters";
 }
 
 int main(int argc, char *argv[]) {
